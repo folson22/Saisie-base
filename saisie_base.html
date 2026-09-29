@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Système de Gestion et Saisie des Élèves</title>
+    <!-- Chargement de Firebase (Optionnel pour la synchronisation multi-postes) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --info: #8e44ad;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        /* --- ECRAN DE CONNEXION --- */
+        .auth-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .auth-card {
+            background: #ffffff;
+            padding: 35px 30px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .auth-card h2 {
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+
+        .auth-card p.subtitle {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        /* --- BARRE DE NAVIGATION & ENTETE --- */
+        .navbar {
+            background: var(--primary);
+            color: white;
+            padding: 12px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .navbar .brand {
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .navbar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 14px;
+        }
+
+        .badge-role {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-admin { background: #e74c3c; color: white; }
+        .badge-agent { background: #3498db; color: white; }
+
+        .container {
+            max-width: 1150px;
+            margin: 25px auto;
+            padding: 0 15px;
+        }
+
+        /* --- FORMULAIRES ET CARTES --- */
+        .card {
+            background: var(--card-bg);
+            padding: 22px 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 22px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-header h3 {
+            color: var(--primary);
+            font-size: 17px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #444;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border 0.2s;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--secondary);
+            outline: none;
+        }
+
+        /* --- BOUTONS --- */
+        .btn {
+            padding: 9px 16px;
+            border: none;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--success); color: white; }
+        .btn-primary:hover { background: #27ae60; }
+        .btn-secondary { background: var(--secondary); color: white; }
+        .btn-secondary:hover { background: #2980b9; }
+        .btn-dark { background: var(--dark); color: white; }
+        .btn-dark:hover { background: #1a252f; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-warning:hover { background: #d35400; }
+        .btn-info { background: var(--info); color: white; }
+        .btn-info:hover { background: #712b9b; }
+
+        /* --- BARRE DE FILTRES ET D'EXPORTATION --- */
+        .filter-box {
+            background: #eef2f5;
+            padding: 15px 20px;
+            border-radius: 6px;
+            margin-bottom: 18px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .export-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* --- TABLEAU DE DONNÉES --- */
+        .table-container {
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 11px 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background-color: #34495e;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover { background-color: #f8f9fa; }
+
+        /* MODALE UTILISATEURS */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1500;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 650px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 768px) {
+            .form-row { flex-direction: column; gap: 0; }
+            .filter-box { flex-direction: column; align-items: stretch; }
+            .navbar { flex-direction: column; gap: 10px; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 1. ECRAN D'ACCUEIL / AUTHENTIFICATION -->
+<div id="authScreen" class="auth-overlay">
+    <div class="auth-card">
+        <h2><i class="fa-solid fa-graduation-cap"></i> Portail Saisie Élèves</h2>
+        <p class="subtitle">Identifiez-vous pour accéder à la plateforme</p>
+        <form id="loginForm">
+            <div class="form-group" style="text-align:left;">
+                <label for="loginUsername">Nom d'utilisateur / Identifiant :</label>
+                <input type="text" id="loginUsername" placeholder="Ex: admin ou agent1" required>
+            </div>
+            <div class="form-group" style="text-align:left;">
+                <label for="loginPassword">Mot de passe :</label>
+                <input type="password" id="loginPassword" placeholder="Ex: admin123" required>
+            </div>
+            <p id="loginError" style="color: var(--danger); font-size: 12px; margin-bottom: 12px; display: none;">
+                Identifiant ou mot de passe incorrect.
+            </p>
+            <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                <i class="fa-solid fa-right-to-bracket"></i> Se connecter
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 2. APPLICATION PRINCIPALE -->
+<div id="mainApp" class="hidden">
+    
+    <!-- Barre de navigation -->
+    <nav class="navbar">
+        <div class="brand">
+            <i class="fa-solid fa-school"></i> Saisie & Gestion des Élèves
+        </div>
+        <div class="user-info">
+            <span>Agent: <strong id="currentUserDisplay">-</strong> <span id="currentRoleBadge" class="badge-role"></span></span>
+            <button id="btnUserMgmt" onclick="openUserModal()" class="btn btn-dark hidden">
+                <i class="fa-solid fa-users-gear"></i> Paramètres Utilisateurs
+            </button>
+            <button onclick="logout()" class="btn btn-danger" style="padding: 6px 12px;">
+                <i class="fa-solid fa-power-off"></i> Déconnexion
+            </button>
+        </div>
+    </nav>
+
+    <div class="container">
+
+        <!-- Formulaire de Saisie d'Élève -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fa-solid fa-user-plus"></i> Formulaire de Saisie Élève</h3>
+                <span style="font-size: 12px; color: #27ae60;"><i class="fa-solid fa-cloud-arrow-up"></i> Sync Google Sheets activée</span>
+            </div>
+            <form id="studentForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="school">Nom de l'Établissement * :</label>
+                        <input type="text" id="school" required placeholder="Ex: Lycée Moderne de Lomé">
+                    </div>
+                    <div class="form-group">
+                        <label for="grade">Classe * :</label>
+                        <input type="text" id="grade" required placeholder="Ex: 3ème A / Terminale C">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="fullName">Nom et Prénom de l'Élève * :</label>
+                    <input type="text" id="fullName" required placeholder="Ex: KOFFI Koffi Emmanuel">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="studentContact">Contact Élève :</label>
+                        <input type="tel" id="studentContact" placeholder="Ex: +228 90 00 00 00">
+                    </div>
+                    <div class="form-group">
+                        <label for="fatherContact">Contact du Père :</label>
+                        <input type="tel" id="fatherContact" placeholder="Ex: +228 91 00 00 00">
+                    </div>
+                    <div class="form-group">
+                        <label for="motherContact">Contact de la Mère :</label>
+                        <input type="tel" id="motherContact" placeholder="Ex: +228 92 00 00 00">
+                    </div>
+                </div>
+
+                <button type="submit" id="btnSubmitStudent" class="btn btn-primary" style="width: 100%; margin-top: 5px;">
+                    <i class="fa-solid fa-floppy-disk"></i> Enregistrer l'Élève
+                </button>
+            </form>
+        </div>
+
+        <!-- Section Liste des Données + Filtres + Exportation -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fa-solid fa-list-check"></i> Base de Données des Élèves (<span id="totalStudentsCount">0</span>)</h3>
+            </div>
+
+            <!-- FILTRES & OPTIONS D'EXPORTATION -->
+            <div class="filter-box">
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="filterSchool"><i class="fa-solid fa-filter"></i> Filtrer par Établissement :</label>
+                    <select id="filterSchool" onchange="applyFilters()">
+                        <option value="">-- Tous les Établissements --</option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="searchKeyword"><i class="fa-solid fa-magnifying-glass"></i> Recherche par Nom :</label>
+                    <input type="text" id="searchKeyword" onkeyup="applyFilters()" placeholder="Nom, prénom ou classe...">
+                </div>
+                <div>
+                    <button onclick="resetFilters()" class="btn btn-dark" style="height: 38px;">Réinitialiser</button>
+                </div>
+            </div>
+
+            <!-- BOUTONS D'EXPORTATION ET SAUVEGARDE -->
+            <div class="export-actions" style="margin-bottom: 15px;">
+                <button onclick="exportFullCSV()" class="btn btn-secondary">
+                    <i class="fa-solid fa-file-excel"></i> Exporter la Liste (Excel / CSV)
+                </button>
+                <button onclick="exportPhoneNumbersOnly()" class="btn btn-warning">
+                    <i class="fa-solid fa-address-book"></i> Exporter Numéros de Tél.
+                </button>
+                
+                <!-- OPTIONS DE SAUVEGARDE/RESTAURATION SUR PC -->
+                <button onclick="backupSystemData()" class="btn btn-info">
+                    <i class="fa-solid fa-download"></i> Sauvegarder la BDD sur le PC (JSON)
+                </button>
+                <button onclick="document.getElementById('importFileInput').click()" class="btn btn-dark">
+                    <i class="fa-solid fa-upload"></i> Restaurer une Sauvegarde
+                </button>
+                <!-- Input masqué pour charger le fichier JSON -->
+                <input type="file" id="importFileInput" accept=".json" style="display: none;" onchange="restoreSystemData(event)">
+            </div>
+
+            <!-- TABLEAU DES DONNÉES -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Établissement</th>
+                            <th>Classe</th>
+                            <th>Nom & Prénom Élève</th>
+                            <th>Contact Élève</th>
+                            <th>Contact Père</th>
+                            <th>Contact Mère</th>
+                            <th>Agent Saisie</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody">
+                        <!-- Remplissage dynamique JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- 3. MODALE GESTION DES PARAMÈTRES UTILISATEURS (ADMIN) -->
+<div id="userModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="card-header">
+            <h3><i class="fa-solid fa-users-gear"></i> Paramètres des Utilisateurs</h3>
+            <button onclick="closeUserModal()" class="btn btn-danger" style="padding: 4px 8px;">&times;</button>
+        </div>
+
+        <!-- Formulaire de création / modification d'un utilisateur -->
+        <form id="userForm" style="margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 6px;">
+            <h4 id="userFormTitle" style="font-size: 14px; margin-bottom: 10px;">Ajouter un nouvel Utilisateur</h4>
+            <input type="hidden" id="editUserId">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="modalUsername">Identifiant :</label>
+                    <input type="text" id="modalUsername" required placeholder="ex: paul2026">
+                </div>
+                <div class="form-group">
+                    <label for="modalPassword">Mot de passe :</label>
+                    <input type="password" id="modalPassword" required placeholder="Mot de passe">
+                </div>
+                <div class="form-group">
+                    <label for="modalRole">Rôle :</label>
+                    <select id="modalRole">
+                        <option value="agent">Agent de Saisie</option>
+                        <option value="admin">Administrateur</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex; gap: 10px;">
+                <button type="submit" id="btnSaveUser" class="btn btn-primary" style="flex:1;">Enregistrer l'Utilisateur</button>
+                <button type="button" id="btnCancelUserEdit" onclick="resetUserForm()" class="btn btn-dark hidden">Annuler</button>
+            </div>
+        </form>
+
+        <!-- Table des utilisateurs existants -->
+        <h4>Liste des Comptes</h4>
+        <br>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Utilisateur</th>
+                        <th>Rôle</th>
+                        <th>Mot de passe</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                    <!-- Remplissage dynamique -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- URL GOOGLE APPS SCRIPT ---
+    // REMPLACEZ CETTE URL PAR VOTRE URL OBTENUE DEPUIS GOOGLE APPS SCRIPT
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwIOHBgcQGMSh_WqeltEahxZ0UW1ghROQyI_Z6OPBzhQQ2206Lp-wf0CFqkBcXcd-mQ/exec";
+
+    // --- COMPTES UTILISATEURS PAR DÉFAUT ---
+    const defaultUsers = [
+        { id: 'usr_1', username: 'admin', password: 'admin123', role: 'admin' },
+        { id: 'usr_2', username: 'agent1', password: 'agent123', role: 'agent' }
+    ];
+
+    // Variables globales
+    let usersList = [];
+    let studentsData = [];
+    let currentUser = null;
+
+    // INITIALISATION DE L'APPLICATION
+    window.addEventListener('DOMContentLoaded', () => {
+        loadUsers();
+        loadStudents();
+    });
+
+    // GESTION DES UTILISATEURS (localStorage)
+    function loadUsers() {
+        const savedUsers = localStorage.getItem('app_users');
+        if (savedUsers) {
+            usersList = JSON.parse(savedUsers);
+        } else {
+            usersList = [...defaultUsers];
+            saveUsers();
+        }
+    }
+
+    function saveUsers() {
+        localStorage.setItem('app_users', JSON.stringify(usersList));
+        renderUserTable();
+    }
+
+    // AUTHENTIFICATION / CONNEXION
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const userVal = document.getElementById('loginUsername').value.trim();
+        const passVal = document.getElementById('loginPassword').value.trim();
+
+        const foundUser = usersList.find(u => u.username.toLowerCase() === userVal.toLowerCase() && u.password === passVal);
+
+        if (foundUser) {
+            currentUser = foundUser;
+            document.getElementById('currentUserDisplay').textContent = currentUser.username;
+            
+            const roleBadge = document.getElementById('currentRoleBadge');
+            roleBadge.textContent = currentUser.role;
+            roleBadge.className = 'badge-role ' + (currentUser.role === 'admin' ? 'badge-admin' : 'badge-agent');
+
+            if (currentUser.role === 'admin') {
+                document.getElementById('btnUserMgmt').classList.remove('hidden');
+            } else {
+                document.getElementById('btnUserMgmt').classList.add('hidden');
+            }
+
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+
+            renderStudentsTable();
+            populateSchoolFilter();
+        } else {
+            document.getElementById('loginError').style.display = 'block';
+        }
+    });
+
+    function logout() {
+        location.reload();
+    }
+
+    // CHARGEMENT ET SAUVEGARDE DES ÉLÈVES (LOCAL)
+    function loadStudents() {
+        const saved = localStorage.getItem('app_students');
+        studentsData = saved ? JSON.parse(saved) : [];
+    }
+
+    function saveStudents() {
+        localStorage.setItem('app_students', JSON.stringify(studentsData));
+        populateSchoolFilter();
+        applyFilters();
+    }
+
+    // AJOUT D'UN ÉLÈVE + ENVOI GOOGLE SHEETS
+    document.getElementById('studentForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const btn = document.getElementById('btnSubmitStudent');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enregistrement...';
+        btn.disabled = true;
+
+        const newStudent = {
+            id: 'eleve_' + Date.now(),
+            school: document.getElementById('school').value.trim(),
+            grade: document.getElementById('grade').value.trim(),
+            fullName: document.getElementById('fullName').value.trim(),
+            studentContact: document.getElementById('studentContact').value.trim() || '-',
+            fatherContact: document.getElementById('fatherContact').value.trim() || '-',
+            motherContact: document.getElementById('motherContact').value.trim() || '-',
+            createdBy: currentUser ? currentUser.username : 'Inconnu',
+            timestamp: new Date().toISOString()
+        };
+
+        // 1. Enregistrement local instantané
+        studentsData.push(newStudent);
+        saveStudents();
+        document.getElementById('studentForm').reset();
+
+        // 2. Envoi vers Google Sheets
+        if (GOOGLE_SCRIPT_URL && !GOOGLE_SCRIPT_URL.includes("VOTRE_ID_DEPLOIEMENT")) {
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newStudent)
+            })
+            .then(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            })
+            .catch(error => {
+                console.error("Erreur d'envoi vers Google Sheets :", error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        } else {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    });
+
+    // SUPPRESSION D'UN ÉLÈVE
+    function deleteStudent(id) {
+        if (confirm("Êtes-vous sûr de vouloir supprimer cet élève ?")) {
+            studentsData = studentsData.filter(item => item.id !== id);
+            saveStudents();
+        }
+    }
+
+    // POPULER LE FILTRE DES ÉTABLISSEMENTS
+    function populateSchoolFilter() {
+        const select = document.getElementById('filterSchool');
+        const currentSelected = select.value;
+        select.innerHTML = '<option value="">-- Tous les Établissements --</option>';
+
+        const schools = [...new Set(studentsData.map(item => item.school))].sort();
+
+        schools.forEach(school => {
+            const opt = document.createElement('option');
+            opt.value = school;
+            opt.textContent = school;
+            select.appendChild(opt);
+        });
+
+        select.value = currentSelected;
+    }
+
+    // FILTRES ET RENDU
+    function applyFilters() {
+        const selectedSchool = document.getElementById('filterSchool').value.toLowerCase();
+        const keyword = document.getElementById('searchKeyword').value.toLowerCase();
+
+        const filtered = studentsData.filter(item => {
+            const matchesSchool = selectedSchool === "" || item.school.toLowerCase() === selectedSchool;
+            const matchesSearch = item.fullName.toLowerCase().includes(keyword) || 
+                                  item.grade.toLowerCase().includes(keyword) || 
+                                  item.school.toLowerCase().includes(keyword);
+            return matchesSchool && matchesSearch;
+        });
+
+        renderStudentsTable(filtered);
+    }
+
+    function resetFilters() {
+        document.getElementById('filterSchool').value = "";
+        document.getElementById('searchKeyword').value = "";
+        applyFilters();
+    }
+
+    // RENDU TABLEAU ÉLÈVES
+    function renderStudentsTable(dataToRender = studentsData) {
+        const tbody = document.getElementById('studentTableBody');
+        tbody.innerHTML = '';
+        document.getElementById('totalStudentsCount').textContent = dataToRender.length;
+
+        dataToRender.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.school}</td>
+                <td>${item.grade}</td>
+                <td><strong>${item.fullName}</strong></td>
+                <td>${item.studentContact}</td>
+                <td>${item.fatherContact}</td>
+                <td>${item.motherContact}</td>
+                <td><small style="color:#777;">${item.createdBy}</small></td>
+                <td>
+                    <button onclick="deleteStudent('${item.id}')" class="btn btn-danger" style="padding: 4px 8px; font-size:11px;">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- EXPORTATION 1 : EXPORT COMPLET CSV ---
+    function exportFullCSV() {
+        const selectedSchool = document.getElementById('filterSchool').value;
+        let dataToExport = studentsData;
+
+        if (selectedSchool !== "") {
+            dataToExport = studentsData.filter(item => item.school === selectedSchool);
+        }
+
+        if (dataToExport.length === 0) {
+            alert("Aucune donnée à exporter.");
+            return;
+        }
+
+        let csv = "\uFEFF";
+        csv += "Etablissement;Classe;Nom et Prenom Eleve;Contact Eleve;Contact Pere;Contact Mere;Agent Saisie\n";
+
+        dataToExport.forEach(item => {
+            csv += `"${item.school}";"${item.grade}";"${item.fullName}";"${item.studentContact}";"${item.fatherContact}";"${item.motherContact}";"${item.createdBy}"\n`;
+        });
+
+        downloadFile(csv, `Eleves_Export_${selectedSchool ? selectedSchool : 'Tous'}.csv`, 'text/csv;charset=utf-8;');
+    }
+
+    // --- EXPORTATION 2 : NUMÉROS DE TÉLÉPHONE UNIQUE ---
+    function exportPhoneNumbersOnly() {
+        const selectedSchool = document.getElementById('filterSchool').value;
+        let dataToExport = studentsData;
+
+        if (selectedSchool !== "") {
+            dataToExport = studentsData.filter(item => item.school === selectedSchool);
+        }
+
+        if (dataToExport.length === 0) {
+            alert("Aucune donnée disponible pour l'exportation des numéros.");
+            return;
+        }
+
+        let csv = "\uFEFF";
+        csv += "Nom et Prenom Eleve;Etablissement;Type Contact;Numero de Telephone\n";
+
+        let totalNumbers = 0;
+
+        dataToExport.forEach(item => {
+            if (item.studentContact && item.studentContact !== '-') {
+                csv += `"${item.fullName}";"${item.school}";"Eleve";"${item.studentContact}"\n`;
+                totalNumbers++;
+            }
+            if (item.fatherContact && item.fatherContact !== '-') {
+                csv += `"${item.fullName}";"${item.school}";"Pere";"${item.fatherContact}"\n`;
+                totalNumbers++;
+            }
+            if (item.motherContact && item.motherContact !== '-') {
+                csv += `"${item.fullName}";"${item.school}";"Mere";"${item.motherContact}"\n`;
+                totalNumbers++;
+            }
+        });
+
+        if (totalNumbers === 0) {
+            alert("Aucun numéro de téléphone disponible dans la sélection actuelle.");
+            return;
+        }
+
+        downloadFile(csv, `Repertoire_Numeros_${selectedSchool ? selectedSchool : 'Tous'}.csv`, 'text/csv;charset=utf-8;');
+    }
+
+    // --- SAUVEGARDE SYSTÈME (JSON) ---
+    function backupSystemData() {
+        if (studentsData.length === 0 && usersList.length === 0) {
+            alert("Aucune donnée à sauvegarder.");
+            return;
+        }
+
+        const backupData = {
+            version: "1.0",
+            exportDate: new Date().toISOString(),
+            students: studentsData,
+            users: usersList
+        };
+
+        const jsonString = JSON.stringify(backupData, null, 2);
+        const dateStr = new Date().toISOString().slice(0, 10);
+        downloadFile(jsonString, `Sauvegarde_Eleves_${dateStr}.json`, 'application/json');
+    }
+
+    // --- RESTAURATION SYSTÈME (JSON) ---
+    function restoreSystemData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                
+                if (importedData.students && Array.isArray(importedData.students)) {
+                    if (confirm("Voulez-vous remplacer ou fusionner la base actuelle ?\n\n'OK' = Fusionner avec les données existantes\n'Annuler' = Remplacer entièrement la base de données")) {
+                        const existingIds = new Set(studentsData.map(s => s.id));
+                        importedData.students.forEach(s => {
+                            if (!existingIds.has(s.id)) {
+                                studentsData.push(s);
+                            }
+                        });
+                    } else {
+                        studentsData = importedData.students;
+                    }
+                    saveStudents();
+                }
+
+                if (importedData.users && Array.isArray(importedData.users)) {
+                    const existingUserIds = new Set(usersList.map(u => u.id));
+                    importedData.users.forEach(u => {
+                        if (!existingUserIds.has(u.id)) {
+                            usersList.push(u);
+                        }
+                    });
+                    saveUsers();
+                }
+
+                alert("Restauration effectuée avec succès !");
+            } catch (err) {
+                alert("Erreur lors de la lecture du fichier de sauvegarde. Assurez-vous qu'il s'agit d'un fichier JSON valide.");
+            }
+            event.target.value = '';
+        };
+
+        reader.readAsText(file);
+    }
+
+    function downloadFile(content, fileName, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // --- GESTION DES PARAMÈTRES UTILISATEURS (ADMIN) ---
+    function openUserModal() {
+        renderUserTable();
+        document.getElementById('userModal').classList.remove('hidden');
+    }
+
+    function closeUserModal() {
+        document.getElementById('userModal').classList.add('hidden');
+        resetUserForm();
+    }
+
+    document.getElementById('userForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const editId = document.getElementById('editUserId').value;
+        const username = document.getElementById('modalUsername').value.trim();
+        const password = document.getElementById('modalPassword').value.trim();
+        const role = document.getElementById('modalRole').value;
+
+        if (editId) {
+            const u = usersList.find(item => item.id === editId);
+            if (u) {
+                u.username = username;
+                u.password = password;
+                u.role = role;
+            }
+        } else {
+            const newUser = {
+                id: 'usr_' + Date.now(),
+                username: username,
+                password: password,
+                role: role
+            };
+            usersList.push(newUser);
+        }
+
+        saveUsers();
+        resetUserForm();
+    });
+
+    function editUser(id) {
+        const u = usersList.find(item => item.id === id);
+        if (u) {
+            document.getElementById('editUserId').value = u.id;
+            document.getElementById('modalUsername').value = u.username;
+            document.getElementById('modalPassword').value = u.password;
+            document.getElementById('modalRole').value = u.role;
+
+            document.getElementById('userFormTitle').textContent = "Modifier l'Utilisateur : " + u.username;
+            document.getElementById('btnSaveUser').textContent = "Mettre à jour";
+            document.getElementById('btnCancelUserEdit').classList.remove('hidden');
+        }
+    }
+
+    function deleteUser(id) {
+        if (usersList.length <= 1) {
+            alert("Impossible de supprimer le dernier utilisateur !");
+            return;
+        }
+        if (confirm("Supprimer cet utilisateur ?")) {
+            usersList = usersList.filter(u => u.id !== id);
+            saveUsers();
+        }
+    }
+
+    function resetUserForm() {
+        document.getElementById('editUserId').value = '';
+        document.getElementById('userForm').reset();
+        document.getElementById('userFormTitle').textContent = "Ajouter un nouvel Utilisateur";
+        document.getElementById('btnSaveUser').textContent = "Enregistrer l'Utilisateur";
+        document.getElementById('btnCancelUserEdit').classList.add('hidden');
+    }
+
+    function renderUserTable() {
+        const tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = '';
+
+        usersList.forEach(u => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${u.username}</strong></td>
+                <td><span class="badge-role ${u.role === 'admin' ? 'badge-admin' : 'badge-agent'}">${u.role}</span></td>
+                <td><code>${u.password}</code></td>
+                <td>
+                    <button onclick="editUser('${u.id}')" class="btn btn-warning" style="padding: 3px 7px; font-size:11px;">
+                        <i class="fa-solid fa-pen"></i> Modifier
+                    </button>
+                    <button onclick="deleteUser('${u.id}')" class="btn btn-danger" style="padding: 3px 7px; font-size:11px;">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+</script>
+
+</body>
+</html>
